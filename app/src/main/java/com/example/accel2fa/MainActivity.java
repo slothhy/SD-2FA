@@ -1,4 +1,4 @@
-package com.example.accelerometer;
+package com.example.accel2fa;
 
 import  androidx.appcompat.app.AppCompatActivity;
 import java.io.BufferedReader;
@@ -11,15 +11,16 @@ import java.io.PrintWriter;
 import java.net.Socket;
 
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.StrictMode;
-import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -30,12 +31,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
     private FileWriter writer;
+    private MediaRecorder mRecordManager;
+
     TextView title,tvx,tvy,tvz;
     EditText txtSub;
     String ip;
-
-
-    StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         tvx = (TextView)findViewById(R.id.xval);
         tvy = (TextView)findViewById(R.id.yval);
         tvz = (TextView)findViewById(R.id.zval);
-        title.setText("Accelerometer Testing");
+        title.setText("Accel2FA");
         txtSub = (EditText)findViewById(R.id.txtSub);
 
     }
@@ -56,6 +56,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     public void onStartClick(View view)
     {
+        //audio
+        mRecordManager = new MediaRecorder();
+        mRecordManager.setAudioSource(MediaRecorder.AudioSource.UNPROCESSED);
+        mRecordManager.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mRecordManager.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+        mRecordManager.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
+        try {
+            mRecordManager.prepare();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        //accelerometer
         mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         Toast.makeText(getBaseContext(), "Started recording", Toast.LENGTH_SHORT).show();
         try {
@@ -63,6 +75,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             Long tsLong = System.currentTimeMillis()/1000;
             String ts = tsLong.toString();
             writer.write(ts + "\n");
+            mRecordManager.start();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -72,6 +85,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     {
         Toast.makeText(getBaseContext(), "Stopped recording", Toast.LENGTH_SHORT).show();
         mSensorManager.unregisterListener(this);
+        mRecordManager.stop();
+        mRecordManager.release();
         if(writer != null) {
             try {
                 writer.close();
@@ -81,6 +96,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
         ip = txtSub.getText().toString();
         new sendData().execute();
+        //play to test
+        Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
+        Intent it = new Intent(Intent.ACTION_VIEW, uri);
+        it.setDataAndType(uri,"video/3gpp");
+        startActivity(it);
 
     }
 
@@ -108,30 +128,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             return "Executed";
         }
     }
-
-//    protected void onResume() {
-//        super.onResume();
-//        try {
-//            writer = new FileWriter("/storage/emulated/0/acc/acc.txt");
-//            Long tsLong = System.currentTimeMillis()/1000;
-//            String ts = tsLong.toString();
-//            writer.write(ts + "\n");
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-
-//    protected void onPause() {
-//        super.onPause();
-//
-//        if(writer != null) {
-//            try {
-//                writer.close();
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//    }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy)

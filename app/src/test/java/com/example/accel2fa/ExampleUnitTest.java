@@ -1,4 +1,4 @@
-package com.example.accelerometer;
+package com.example.accel2fa;
 
 import org.junit.Test;
 
