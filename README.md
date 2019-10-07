@@ -15,6 +15,14 @@ Minimum version of Android Oreo (SDK26) required.
 2. Go to app permission and tick both Microphone and Storage. (Will be added as prerequisite on app start in future version)
 ```
 
+### How to use
+
+```
+1. nc -l 50505 on your local machine.
+2. Enter IP of the local machine and press start to start recording.
+3. Press stop to end recording and data will be sent to the listening machine and application will attempt to play the ambient noise recorded.
+```
+
 ### To-dos
 
 ``` 
