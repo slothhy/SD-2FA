@@ -6,8 +6,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.net.ServerSocket;
 import java.net.Socket;
 
 import android.content.Context;
@@ -21,6 +23,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -36,6 +39,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     TextView title,tvx,tvy,tvz;
     EditText txtSub;
     String ip;
+    ServerSocket server;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,13 +49,43 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
-        title = (TextView)findViewById(R.id.name);
-        tvx = (TextView)findViewById(R.id.xval);
-        tvy = (TextView)findViewById(R.id.yval);
-        tvz = (TextView)findViewById(R.id.zval);
+        title = (TextView) findViewById(R.id.name);
+        tvx = (TextView) findViewById(R.id.xval);
+        tvy = (TextView) findViewById(R.id.yval);
+        tvz = (TextView) findViewById(R.id.zval);
         title.setText("Accel2FA");
-        txtSub = (EditText)findViewById(R.id.txtSub);
+        txtSub = (EditText) findViewById(R.id.txtSub);
 
+
+        Runnable conn = new Runnable() {
+            private Boolean stop = false;
+
+            public void run() {
+                try {
+                    server = new ServerSocket(53000);
+                    Socket socket = server.accept();
+
+                    while (!stop) {
+                        BufferedReader in = new BufferedReader(
+                                new InputStreamReader(socket.getInputStream()));
+
+                        String str = in.readLine();
+
+                        Log.i("received response from client", str);
+                        if (str.equals("TEST")) {
+                            stop = true;
+                            in.close();
+                            socket.close();
+                            Log.i("received response from client", "start recording");
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        new Thread(conn).start();
     }
 
 
