@@ -11,6 +11,8 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import android.content.Context;
 import android.content.Intent;
@@ -28,6 +30,8 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import static java.lang.Thread.sleep;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
@@ -58,14 +62,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
         Runnable conn = new Runnable() {
-            private Boolean stop = false;
 
             public void run() {
                 try {
                     server = new ServerSocket(53000);
                     Socket socket = server.accept();
 
-                    while (!stop) {
+                    while (true) {
                         BufferedReader in = new BufferedReader(
                                 new InputStreamReader(socket.getInputStream()));
 
@@ -73,10 +76,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
                         Log.i("received response from client", str);
                         if (str.equals("TEST")) {
-                            stop = true;
                             in.close();
                             socket.close();
                             Log.i("received response from client", "start recording");
+                            new startRecord().execute();
                         }
                     }
                 } catch (IOException e) {
@@ -88,12 +91,44 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         new Thread(conn).start();
     }
 
+    private class startRecord extends AsyncTask {
+        @Override
+        protected String doInBackground(Object[] objects) {
+            //audio
+            mRecordManager = new MediaRecorder();
+            mRecordManager.setAudioSource(MediaRecorder.AudioSource.MIC);
+            mRecordManager.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+            mRecordManager.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+            mRecordManager.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
+            try {
+                mRecordManager.prepare();
+                mRecordManager.start();
+                TimerTask t = new TimerTask() {
+                    @Override
+                    public void run() {
+                        mRecordManager.stop();
+                        mRecordManager.release();
+                        //play to test
+                        Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
+                        Intent it = new Intent(Intent.ACTION_VIEW, uri);
+                        it.setDataAndType(uri,"video/3gpp");
+                        startActivity(it);
+                    }
+                };
+                new Timer().schedule(t, 3000);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return "Executed";
+        }
+    }
+
 
     public void onStartClick(View view)
     {
         //audio
         mRecordManager = new MediaRecorder();
-        mRecordManager.setAudioSource(MediaRecorder.AudioSource.UNPROCESSED);
+        mRecordManager.setAudioSource(MediaRecorder.AudioSource.MIC);
         mRecordManager.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
         mRecordManager.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
         mRecordManager.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
