@@ -1,26 +1,5 @@
 package com.example.accel2fa;
 
-import androidx.annotation.NonNull;
-import  androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
-
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
@@ -32,7 +11,6 @@ import android.hardware.SensorManager;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -40,6 +18,22 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
@@ -49,11 +43,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private Sensor mAccelerometer;
     private FileWriter writer;
     private MediaRecorder mRecordManager;
+    private Context context;
 
-    TextView title,tvx,tvy,tvz;
+    TextView title, tvx, tvy, tvz;
     EditText txtSub;
     String ip;
-    ServerSocket server;
 
     private static final int MY_PERMISSIONS_REQUEST_CODE = 1;
 
@@ -108,8 +102,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         if (!checkPermissions()) {
             requestPermission();
         }
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        context = getApplicationContext();
+
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
@@ -119,78 +116,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         tvz = (TextView) findViewById(R.id.zval);
         title.setText("Accel2FA");
         txtSub = (EditText) findViewById(R.id.txtSub);
-
-
-        Runnable conn = new Runnable() {
-
-            public void run() {
-                try {
-                    server = new ServerSocket(53000);
-                    Socket socket = server.accept();
-
-                    while (true) {
-                        BufferedReader in = new BufferedReader(
-                                new InputStreamReader(socket.getInputStream()));
-
-                        String str = in.readLine();
-
-                        Log.i("received response from client", str);
-                        if (str.equals("TEST")) {
-                            in.close();
-                            socket.close();
-                            Log.i("received response from client", "start recording");
-                            new startRecord().execute();
-                        }
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-        new Thread(conn).start();
     }
 
-    private class startRecord extends AsyncTask {
-        @Override
-        protected String doInBackground(Object[] objects) {
-            //audio
-            mRecordManager = new MediaRecorder();
-            mRecordManager.setAudioSource(MediaRecorder.AudioSource.MIC);
-            mRecordManager.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-            mRecordManager.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-            mRecordManager.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
-            try {
-                mRecordManager.prepare();
-                mRecordManager.start();
-                TimerTask t = new TimerTask() {
-                    @Override
-                    public void run() {
-                        mRecordManager.stop();
-                        mRecordManager.release();
-                        //play to test
-                        Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
-                        Intent it = new Intent(Intent.ACTION_VIEW, uri);
-                        it.setDataAndType(uri,"video/3gpp");
-                        startActivity(it);
-                    }
-                };
-                new Timer().schedule(t, 3000);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return "Executed";
-        }
-    }
-
-
-    public void onStartClick(View view)
-    {
+    public void onStartClick(View view) {
         //audio
+
         mRecordManager = new MediaRecorder();
         mRecordManager.setAudioSource(MediaRecorder.AudioSource.MIC);
         mRecordManager.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
         mRecordManager.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
         mRecordManager.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
+
         try {
             mRecordManager.prepare();
         } catch (Exception e) {
@@ -201,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         Toast.makeText(getBaseContext(), "Started recording", Toast.LENGTH_SHORT).show();
         try {
             writer = new FileWriter(Environment.getExternalStorageDirectory().getAbsolutePath() + "/acc.txt");
-            Long tsLong = System.currentTimeMillis()/1000;
+            Long tsLong = System.currentTimeMillis() / 1000;
             String ts = tsLong.toString();
             writer.write(ts + "\n");
             mRecordManager.start();
@@ -210,13 +146,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
-    public void onStopClick(View view)
-    {
+    public void onStopClick(View view) {
         Toast.makeText(getBaseContext(), "Stopped recording", Toast.LENGTH_SHORT).show();
         mSensorManager.unregisterListener(this);
         mRecordManager.stop();
         mRecordManager.release();
-        if(writer != null) {
+        if (writer != null) {
             try {
                 writer.close();
             } catch (IOException e) {
@@ -228,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         //play to test
         Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
         Intent it = new Intent(Intent.ACTION_VIEW, uri);
-        it.setDataAndType(uri,"video/3gpp");
+        it.setDataAndType(uri, "video/3gpp");
         startActivity(it);
 
     }
@@ -245,7 +180,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 FileReader fr = new FileReader(file);
                 BufferedReader br = new BufferedReader(fr);
                 String line;
-                while((line = br.readLine()) != null){
+                while ((line = br.readLine()) != null) {
                     //process the line
                     output.println(line);
                 }
@@ -259,27 +194,72 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy)
-    {
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
     }
 
     @Override
-    public void onSensorChanged(SensorEvent event)
-    {
+    public void onSensorChanged(SensorEvent event) {
         float x = event.values[0];
         float y = event.values[1];
         float z = event.values[2];
 
-        tvx.setText("X = "+ String.valueOf(x));
-        tvy.setText("Y = "+ String.valueOf(y));
-        tvz.setText("Z = "+ String.valueOf(z));
+        tvx.setText("X = " + String.valueOf(x));
+        tvy.setText("Y = " + String.valueOf(y));
+        tvz.setText("Z = " + String.valueOf(z));
 
         try {
-            writer.write(x+","+y+","+z+"\n");
+            writer.write(x + "," + y + "," + z + "\n");
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent.getStringExtra("initiateRecording").equals("startRecord")) {
+            new RecorderAsyncTask().execute();
+        }
+    }
+
+    private class RecorderAsyncTask extends AsyncTask<Void, Void, Void> {
+        @Override
+        protected void onPreExecute() {
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            //audio
+            mRecordManager = new MediaRecorder();
+            mRecordManager.setAudioSource(MediaRecorder.AudioSource.MIC);
+            mRecordManager.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+            mRecordManager.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+            mRecordManager.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
+            try {
+                mRecordManager.prepare();
+                mRecordManager.start();
+
+                //sleep 3s
+                Thread.sleep(6000);
+
+                mRecordManager.stop();
+                mRecordManager.release();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            Toast.makeText(context, "Recording Complete", Toast.LENGTH_SHORT).show();
+            //play to test
+            Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
+            Intent it = new Intent(Intent.ACTION_VIEW, uri);
+            it.setDataAndType(uri, "video/3gpp");
+            startActivity(it);
+        }
     }
 
 }
