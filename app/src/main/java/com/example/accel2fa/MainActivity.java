@@ -8,6 +8,8 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -23,17 +25,21 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.lib.analysis.FFT;
+
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
@@ -50,6 +56,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     String ip;
 
     private static final int MY_PERMISSIONS_REQUEST_CODE = 1;
+    private static final int SAMPLING_RATE_IN_HZ = 44100;
+    private static final int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
+    private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
+    private static final int BUFFER_SIZE_FACTOR = 2;
+    private static final int BUFFER_SIZE = AudioRecord.getMinBufferSize(SAMPLING_RATE_IN_HZ,
+            CHANNEL_CONFIG, AUDIO_FORMAT) * BUFFER_SIZE_FACTOR;
+    private final AtomicBoolean recordingInProgress = new AtomicBoolean(false);
+    private AudioRecord recorder = null;
 
     String[] permissions = new String[]{
             Manifest.permission.INTERNET,
@@ -230,36 +244,76 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         @Override
         protected Void doInBackground(Void... params) {
-            //audio
-            mRecordManager = new MediaRecorder();
-            mRecordManager.setAudioSource(MediaRecorder.AudioSource.MIC);
-            mRecordManager.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-            mRecordManager.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-            mRecordManager.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
+            recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, SAMPLING_RATE_IN_HZ,
+                    CHANNEL_CONFIG, AUDIO_FORMAT, BUFFER_SIZE);
+
             try {
-                mRecordManager.prepare();
-                mRecordManager.start();
+                Log.d("Recording", "Begins");
+                recorder.startRecording();
+                recordingInProgress.set(true);
 
-                //sleep 3s
-                Thread.sleep(6000);
+                final File file = new File(Environment.getExternalStorageDirectory(), "recording.pcm");
+                final ByteBuffer buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
 
-                mRecordManager.stop();
-                mRecordManager.release();
+                long t= System.currentTimeMillis();
+                long end = t + 5000; //5s worth of audio
+
+                try (final FileOutputStream outStream = new FileOutputStream(file)) {
+                    while (System.currentTimeMillis() < end) {
+                        int result = recorder.read(buffer, BUFFER_SIZE);
+                        if (result < 0) {
+                            throw new RuntimeException("Reading of audio buffer failed: " +
+                                    getBufferReadFailureReason(result));
+                        }
+                        outStream.write(buffer.array(), 0, BUFFER_SIZE);
+                        buffer.clear();
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException("Writing of recorded audio failed", e);
+                }
+
+                Thread.sleep(3000);
+                recorder.stop();
+                recorder.release();
+                Log.d("Recording", "Ends");
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
+
             return null;
         }
 
         @Override
         protected void onPostExecute(Void result) {
             Toast.makeText(context, "Recording Complete", Toast.LENGTH_SHORT).show();
-            //play to test
-            Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
-            Intent it = new Intent(Intent.ACTION_VIEW, uri);
-            it.setDataAndType(uri, "video/3gpp");
-            startActivity(it);
+
+            float samples[] = new float[1024];
+
+            Log.d("PATH", Environment.getExternalStorageDirectory().getAbsolutePath() + "/recording.pcm");
+//            WaveDecoder decoder = new WaveDecoder( new FileInputStream( uri ) );
+FFT fft = new FFT(1024, 44100);
+
+//            //play to test
+//            Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/recording.pcm");
+//            Intent it = new Intent(Intent.ACTION_VIEW, uri);
+//            it.setDataAndType(uri, "video/3gpp");
+//            startActivity(it);
+        }
+
+        private String getBufferReadFailureReason(int errorCode) {
+            switch (errorCode) {
+                case AudioRecord.ERROR_INVALID_OPERATION:
+                    return "ERROR_INVALID_OPERATION";
+                case AudioRecord.ERROR_BAD_VALUE:
+                    return "ERROR_BAD_VALUE";
+                case AudioRecord.ERROR_DEAD_OBJECT:
+                    return "ERROR_DEAD_OBJECT";
+                case AudioRecord.ERROR:
+                    return "ERROR";
+                default:
+                    return "Unknown (" + errorCode + ")";
+            }
         }
     }
-
 }
