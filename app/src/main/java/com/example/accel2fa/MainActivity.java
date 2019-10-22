@@ -25,8 +25,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.example.lib.analysis.FFT;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -249,32 +247,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             try {
                 Log.d("Recording", "Begins");
-                recorder.startRecording();
+                //recorder.startRecording();
                 recordingInProgress.set(true);
 
-                final File file = new File(Environment.getExternalStorageDirectory(), "recording.pcm");
-                final ByteBuffer buffer = ByteBuffer.allocateDirect(BUFFER_SIZE);
-
-                long t= System.currentTimeMillis();
-                long end = t + 5000; //5s worth of audio
-
-                try (final FileOutputStream outStream = new FileOutputStream(file)) {
-                    while (System.currentTimeMillis() < end) {
-                        int result = recorder.read(buffer, BUFFER_SIZE);
-                        if (result < 0) {
-                            throw new RuntimeException("Reading of audio buffer failed: " +
-                                    getBufferReadFailureReason(result));
-                        }
-                        outStream.write(buffer.array(), 0, BUFFER_SIZE);
-                        buffer.clear();
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException("Writing of recorded audio failed", e);
-                }
-
+                String path = Environment.getExternalStorageDirectory().getPath() + "/recording.wav";
+                WavRecorder wavRecorder = new WavRecorder(path);
+                wavRecorder.startRecording();
                 Thread.sleep(3000);
-                recorder.stop();
-                recorder.release();
+                wavRecorder.stopRecording();;
                 Log.d("Recording", "Ends");
 
             } catch (Exception e) {
@@ -287,13 +267,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         @Override
         protected void onPostExecute(Void result) {
             Toast.makeText(context, "Recording Complete", Toast.LENGTH_SHORT).show();
-
-            float samples[] = new float[1024];
-
-            Log.d("PATH", Environment.getExternalStorageDirectory().getAbsolutePath() + "/recording.pcm");
 //            WaveDecoder decoder = new WaveDecoder( new FileInputStream( uri ) );
-FFT fft = new FFT(1024, 44100);
-
 //            //play to test
 //            Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/recording.pcm");
 //            Intent it = new Intent(Intent.ACTION_VIEW, uri);
