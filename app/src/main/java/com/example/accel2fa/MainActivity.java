@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.PreferenceActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -25,18 +26,27 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.InputStreamEntity;
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.impl.client.DefaultHttpClient;
+
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
@@ -250,12 +260,25 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 //recorder.startRecording();
                 recordingInProgress.set(true);
 
-                String path = Environment.getExternalStorageDirectory().getPath() + "/recording.wav";
+                String path = Environment.getExternalStorageDirectory().getPath() + "/phone.wav";
                 WavRecorder wavRecorder = new WavRecorder(path);
                 wavRecorder.startRecording();
                 Thread.sleep(3000);
                 wavRecorder.stopRecording();;
                 Log.d("Recording", "Ends");
+
+                // Upload file
+                Log.d("Uploading", "Starts");
+                File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/phone.wav");
+                String url = "http://192.168.1.98:3000/api/phone";
+                HttpClient httpclient = new DefaultHttpClient();
+                HttpPost post = new HttpPost(url);
+
+                MultipartEntity entity = new MultipartEntity();
+                entity.addPart("file", new FileBody(file));
+                post.setEntity(entity);
+                HttpResponse resp = httpclient.execute(post);
+                Log.d("Uploading", resp.getStatusLine().toString());
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -263,6 +286,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             return null;
         }
+
 
         @Override
         protected void onPostExecute(Void result) {
