@@ -9,13 +9,14 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioFormat;
+import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
-import android.preference.PreferenceActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -29,15 +30,12 @@ import androidx.core.content.ContextCompat;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.FileBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -46,22 +44,11 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
-
-    private SensorManager mSensorManager;
-    private Sensor mAccelerometer;
-    private FileWriter writer;
-    private MediaRecorder mRecordManager;
-    private Context context;
-
-    TextView title, tvx, tvy, tvz;
-    EditText txtSub;
-    String ip;
 
     private static final int MY_PERMISSIONS_REQUEST_CODE = 1;
     private static final int SAMPLING_RATE_IN_HZ = 44100;
@@ -70,15 +57,24 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private static final int BUFFER_SIZE_FACTOR = 2;
     private static final int BUFFER_SIZE = AudioRecord.getMinBufferSize(SAMPLING_RATE_IN_HZ,
             CHANNEL_CONFIG, AUDIO_FORMAT) * BUFFER_SIZE_FACTOR;
+    private static final int SOUND_SIMILARITY_MODE = 1;
+    private static final int DISTANCE_VERIFICATION_MODE = 2;
     private final AtomicBoolean recordingInProgress = new AtomicBoolean(false);
-    private AudioRecord recorder = null;
-
+    TextView title, tvx, tvy, tvz;
+    EditText txtSub;
+    String ip;
     String[] permissions = new String[]{
             Manifest.permission.INTERNET,
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.RECORD_AUDIO
     };
+    private SensorManager mSensorManager;
+    private Sensor mAccelerometer;
+    private FileWriter writer;
+    private MediaRecorder mRecordManager;
+    private Context context;
+    private AudioRecord recorder = null;
 
     private boolean checkPermissions() {
         int result;
@@ -190,31 +186,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     }
 
-    private class sendData extends AsyncTask {
-        @Override
-        protected String doInBackground(Object[] objects) {
-            try {
-                File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/acc.txt");
-                //Socket socket = new Socket("192.168.86.29", 50505);
-                Socket socket = new Socket(ip, 50505);
-                OutputStream out = socket.getOutputStream();
-                PrintWriter output = new PrintWriter(out);
-                FileReader fr = new FileReader(file);
-                BufferedReader br = new BufferedReader(fr);
-                String line;
-                while ((line = br.readLine()) != null) {
-                    //process the line
-                    output.println(line);
-                }
-                output.flush();
-                output.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return "Executed";
-        }
-    }
-
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
     }
@@ -240,36 +211,122 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if (intent.getStringExtra("initiateRecording").equals("startRecord")) {
-            new RecorderAsyncTask().execute();
+        int mode = intent.getIntExtra("mode", 0);
+        if (mode == SOUND_SIMILARITY_MODE || mode == DISTANCE_VERIFICATION_MODE) {
+            if (mode == DISTANCE_VERIFICATION_MODE) {
+                int frequency = intent.getIntExtra("frequency", 0);
+                new RecorderAsyncTask().execute(mode, frequency);
+            } else {
+                new RecorderAsyncTask().execute(mode);
+            }
         }
     }
 
-    private class RecorderAsyncTask extends AsyncTask<Void, Void, Void> {
+    private class sendData extends AsyncTask {
+        @Override
+        protected String doInBackground(Object[] objects) {
+            try {
+                File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/acc.txt");
+                //Socket socket = new Socket("192.168.86.29", 50505);
+                Socket socket = new Socket(ip, 50505);
+                OutputStream out = socket.getOutputStream();
+                PrintWriter output = new PrintWriter(out);
+                FileReader fr = new FileReader(file);
+                BufferedReader br = new BufferedReader(fr);
+                String line;
+                while ((line = br.readLine()) != null) {
+                    //process the line
+                    output.println(line);
+                }
+                output.flush();
+                output.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return "Executed";
+        }
+    }
+
+    private class RecorderAsyncTask extends AsyncTask<Integer, Void, Void> {
         @Override
         protected void onPreExecute() {
         }
 
         @Override
-        protected Void doInBackground(Void... params) {
+        protected Void doInBackground(Integer... params) {
+            int mode = params[0];
+
             recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, SAMPLING_RATE_IN_HZ,
                     CHANNEL_CONFIG, AUDIO_FORMAT, BUFFER_SIZE);
 
             try {
                 Log.d("Recording", "Begins");
-                //recorder.startRecording();
                 recordingInProgress.set(true);
 
-                String path = Environment.getExternalStorageDirectory().getPath() + "/phone.wav";
-                WavRecorder wavRecorder = new WavRecorder(path);
-                wavRecorder.startRecording();
-                Thread.sleep(3000);
-                wavRecorder.stopRecording();;
-                Log.d("Recording", "Ends");
+                if (mode == SOUND_SIMILARITY_MODE) {
 
+                    String path = Environment.getExternalStorageDirectory().getPath() + "/phone.wav";
+                    WavRecorder wavRecorder = new WavRecorder(path);
+                    wavRecorder.startRecording();
+                    Thread.sleep(3000);
+                    wavRecorder.stopRecording();
+                    Log.d("Recording", "Ends");
+                    uploadRecording("/phone.wav");
+
+                } else if (mode == DISTANCE_VERIFICATION_MODE) {
+
+                    String path = Environment.getExternalStorageDirectory().getPath() + "/phone_distance.wav";
+                    WavRecorder wavRecorder = new WavRecorder(path);
+                    wavRecorder.startRecording();
+                    Thread.sleep(1500);
+                    playTone();
+                    Thread.sleep(1500);
+                    wavRecorder.stopRecording();
+
+                    Log.d("Recording", "Ends");
+                    uploadRecording("/phone_distance.wav");
+
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        }
+
+        private void playTone() {
+            GenerateChirpSignal arr = new GenerateChirpSignal(16000, 20000, 0.05);
+            double[] freqArr = arr.getArr();
+            int idx = 0;
+            final byte generatedSnd[] = new byte[2 * 2205];
+            for (final double dVal : freqArr) {
+                // scale to maximum amplitude
+                final short val = (short) ((dVal * 32767));
+                // in 16 bit wav PCM, first byte is the low order byte
+                generatedSnd[idx++] = (byte) (val & 0x00ff);
+                generatedSnd[idx++] = (byte) ((val & 0xff00) >>> 8);
+
+            }
+
+            final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                    44100, AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT, generatedSnd.length,
+                    AudioTrack.MODE_STATIC);
+            audioTrack.write(generatedSnd, 0, generatedSnd.length);
+            audioTrack.play();
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            Toast.makeText(context, "Recording Complete", Toast.LENGTH_SHORT).show();
+        }
+
+
+        private void uploadRecording(String filename) {
+            try {
                 // Upload file
                 Log.d("Uploading", "Starts");
-                File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/phone.wav");
+                File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + filename);
                 String url = "http://192.168.1.98:3000/api/phone";
                 HttpClient httpclient = new DefaultHttpClient();
                 HttpPost post = new HttpPost(url);
@@ -279,38 +336,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 post.setEntity(entity);
                 HttpResponse resp = httpclient.execute(post);
                 Log.d("Uploading", resp.getStatusLine().toString());
-
             } catch (Exception e) {
                 e.printStackTrace();
-            }
-
-            return null;
-        }
-
-
-        @Override
-        protected void onPostExecute(Void result) {
-            Toast.makeText(context, "Recording Complete", Toast.LENGTH_SHORT).show();
-//            WaveDecoder decoder = new WaveDecoder( new FileInputStream( uri ) );
-//            //play to test
-//            Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/recording.pcm");
-//            Intent it = new Intent(Intent.ACTION_VIEW, uri);
-//            it.setDataAndType(uri, "video/3gpp");
-//            startActivity(it);
-        }
-
-        private String getBufferReadFailureReason(int errorCode) {
-            switch (errorCode) {
-                case AudioRecord.ERROR_INVALID_OPERATION:
-                    return "ERROR_INVALID_OPERATION";
-                case AudioRecord.ERROR_BAD_VALUE:
-                    return "ERROR_BAD_VALUE";
-                case AudioRecord.ERROR_DEAD_OBJECT:
-                    return "ERROR_DEAD_OBJECT";
-                case AudioRecord.ERROR:
-                    return "ERROR";
-                default:
-                    return "Unknown (" + errorCode + ")";
             }
         }
     }

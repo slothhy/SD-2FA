@@ -1,7 +1,5 @@
 package com.example.accel2fa;
 
-import android.app.PendingIntent;
-import android.content.ComponentName;
 import android.content.Intent;
 import android.util.Log;
 
@@ -10,6 +8,8 @@ import com.google.firebase.messaging.RemoteMessage;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
     private static String TAG = "MyFirebaseSession";
+    private static final int SOUND_SIMILARITY_MODE = 1;
+    private static final int DISTANCE_VERIFICATION_MODE = 2;
 
     /**
      * Called if InstanceID token is updated. This may occur if the security of
@@ -25,14 +25,16 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
+        int mode = Integer.parseInt(remoteMessage.getData().get("mode"));
 
         // Check if message contains a data payload.
-        if (remoteMessage.getData().get("action").equals("startRecord")) {
+        if (mode == SOUND_SIMILARITY_MODE || mode == DISTANCE_VERIFICATION_MODE) {
             Log.d(TAG, "Message data payload: " + remoteMessage.getData());
             Intent intent = new Intent(this, MainActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            intent.putExtra("initiateRecording", "startRecord");
+            intent.putExtra("mode", mode);
+
             startActivity(intent);
         }
     }
