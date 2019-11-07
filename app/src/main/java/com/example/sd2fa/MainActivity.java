@@ -307,20 +307,20 @@ public class MainActivity extends AppCompatActivity {
                     Log.d("Recording", "Ends");
                     uploadRecording("/phone.wav");
 
-                } else if (mode == DISTANCE_VERIFICATION_MODE) {
-
-                    String path = Environment.getExternalStorageDirectory().getPath() + "/phone_distance.wav";
-                    WavRecorder wavRecorder = new WavRecorder(path);
-                    wavRecorder.startRecording();
+                    String path2 = Environment.getExternalStorageDirectory().getPath() + "/phone_distance.wav";
+                    WavRecorder wavRecorder2 = new WavRecorder(path2);
+                    wavRecorder2.startRecording();
                     Thread.sleep(1600);
                     playTone();
                     Thread.sleep(1500);
-                    wavRecorder.stopRecording();
+                    wavRecorder2.stopRecording();
 
                     Log.d("Recording", "Ends");
                     uploadRecording("/phone_distance.wav");
 
+
                 }
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
