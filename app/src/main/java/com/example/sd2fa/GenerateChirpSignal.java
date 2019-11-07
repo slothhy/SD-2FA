@@ -1,4 +1,4 @@
-package com.example.accel2fa;
+package com.example.sd2fa;
 
 
 public class GenerateChirpSignal {

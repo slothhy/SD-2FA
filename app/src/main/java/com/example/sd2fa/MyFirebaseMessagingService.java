@@ -1,4 +1,4 @@
-package com.example.accel2fa;
+package com.example.sd2fa;
 
 import android.content.Intent;
 import android.util.Log;

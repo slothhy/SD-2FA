@@ -5,7 +5,7 @@ android {
     compileSdkVersion 29
     buildToolsVersion "29.0.2"
     defaultConfig {
-        applicationId "com.example.accel2fa"
+        applicationId "com.example.sd2fa"
         minSdkVersion 26
         targetSdkVersion 29
         versionCode 1

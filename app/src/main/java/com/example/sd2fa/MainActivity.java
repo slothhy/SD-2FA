@@ -1,4 +1,4 @@
-package com.example.accel2fa;
+package com.example.sd2fa;
 
 import android.Manifest;
 import android.content.Context;
@@ -132,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         tvx = (TextView) findViewById(R.id.xval);
         tvy = (TextView) findViewById(R.id.yval);
         tvz = (TextView) findViewById(R.id.zval);
-        title.setText("Accel2FA");
+        title.setText("SD-2FA");
         txtSub = (EditText) findViewById(R.id.txtSub);
     }
 
