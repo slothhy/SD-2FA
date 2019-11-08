@@ -5,20 +5,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.text.Spanned;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -36,14 +32,8 @@ import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.FileBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -60,7 +50,6 @@ public class MainActivity extends AppCompatActivity {
     private static final int BUFFER_SIZE = AudioRecord.getMinBufferSize(SAMPLING_RATE_IN_HZ,
             CHANNEL_CONFIG, AUDIO_FORMAT) * BUFFER_SIZE_FACTOR;
     private static final int SOUND_SIMILARITY_MODE = 1;
-    private static final int DISTANCE_VERIFICATION_MODE = 2;
     private final AtomicBoolean recordingInProgress = new AtomicBoolean(false);
     TextView title, text;
 
@@ -127,7 +116,6 @@ public class MainActivity extends AppCompatActivity {
         context = getApplicationContext();
 
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-//        mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
         title = (TextView) findViewById(R.id.name);
         title.setText("SD-2FA");
@@ -162,124 +150,18 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         handler.postDelayed(runnable, 1 * 1000);
-       //text.setText("Listening...");
-
-//        tvx = (TextView) findViewById(R.id.xval);
-//        tvy = (TextView) findViewById(R.id.yval);
-//        tvz = (TextView) findViewById(R.id.zval);
-//        txtSub = (EditText) findViewById(R.id.txtSub);
     }
 
-//    public void onStartClick(View view) {
-//        //audio
-//
-//        mRecordManager = new MediaRecorder();
-//        mRecordManager.setAudioSource(MediaRecorder.AudioSource.MIC);
-//        mRecordManager.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-//        mRecordManager.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-//        mRecordManager.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
-//
-//        try {
-//            mRecordManager.prepare();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//        //accelerometer
-//        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-//        Toast.makeText(getBaseContext(), "Started recording", Toast.LENGTH_SHORT).show();
-//        try {
-//            writer = new FileWriter(Environment.getExternalStorageDirectory().getAbsolutePath() + "/acc.txt");
-//            Long tsLong = System.currentTimeMillis() / 1000;
-//            String ts = tsLong.toString();
-//            writer.write(ts + "\n");
-//            mRecordManager.start();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
-//    public void onStopClick(View view) {
-//        Toast.makeText(getBaseContext(), "Stopped recording", Toast.LENGTH_SHORT).show();
-//        mSensorManager.unregisterListener(this);
-//        mRecordManager.stop();
-//        mRecordManager.release();
-//        if (writer != null) {
-//            try {
-//                writer.close();
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//        ip = txtSub.getText().toString();
-//        new sendData().execute();
-//        //play to test
-//        Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getAbsolutePath() + "/sound.3gp");
-//        Intent it = new Intent(Intent.ACTION_VIEW, uri);
-//        it.setDataAndType(uri, "video/3gpp");
-//        startActivity(it);
-//
-//    }
-
-//    @Override
-//    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-//    }
-//
-//    @Override
-//    public void onSensorChanged(SensorEvent event) {
-//        float x = event.values[0];
-//        float y = event.values[1];
-//        float z = event.values[2];
-//
-//        tvx.setText("X = " + String.valueOf(x));
-//        tvy.setText("Y = " + String.valueOf(y));
-//        tvz.setText("Z = " + String.valueOf(z));
-//
-//        try {
-//            writer.write(x + "," + y + "," + z + "\n");
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//    }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         int mode = intent.getIntExtra("mode", 0);
-        if (mode == SOUND_SIMILARITY_MODE || mode == DISTANCE_VERIFICATION_MODE) {
-            if (mode == DISTANCE_VERIFICATION_MODE) {
-                int frequency = intent.getIntExtra("frequency", 0);
-                new RecorderAsyncTask().execute(mode, frequency);
-            } else {
-                new RecorderAsyncTask().execute(mode);
-            }
+        if (mode == SOUND_SIMILARITY_MODE) {
+            new RecorderAsyncTask().execute(mode);
         }
     }
 
-//    private class sendData extends AsyncTask {
-//        @Override
-//        protected String doInBackground(Object[] objects) {
-//            try {
-//                File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/acc.txt");
-//                //Socket socket = new Socket("192.168.86.29", 50505);
-//                Socket socket = new Socket(ip, 50505);
-//                OutputStream out = socket.getOutputStream();
-//                PrintWriter output = new PrintWriter(out);
-//                FileReader fr = new FileReader(file);
-//                BufferedReader br = new BufferedReader(fr);
-//                String line;
-//                while ((line = br.readLine()) != null) {
-//                    //process the line
-//                    output.println(line);
-//                }
-//                output.flush();
-//                output.close();
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//            return "Executed";
-//        }
-//    }
 
     private class RecorderAsyncTask extends AsyncTask<Integer, Void, Void> {
         @Override
@@ -302,25 +184,28 @@ public class MainActivity extends AppCompatActivity {
                     String path = Environment.getExternalStorageDirectory().getPath() + "/phone.wav";
                     WavRecorder wavRecorder = new WavRecorder(path);
                     wavRecorder.startRecording();
-                    Thread.sleep(3100);
+                    Thread.sleep(1500);
+                    playTone();
+                    Thread.sleep(1500);
                     wavRecorder.stopRecording();
                     Log.d("Recording", "Ends");
                     uploadRecording("/phone.wav");
 
-                    String path2 = Environment.getExternalStorageDirectory().getPath() + "/phone_distance.wav";
-                    WavRecorder wavRecorder2 = new WavRecorder(path2);
-                    wavRecorder2.startRecording();
-                    Thread.sleep(1600);
-                    playTone();
-                    Thread.sleep(1500);
-                    wavRecorder2.stopRecording();
-
-                    Log.d("Recording", "Ends");
-                    uploadRecording("/phone_distance.wav");
-
-
                 }
-
+//                else if (mode == DISTANCE_VERIFICATION_MODE) {
+//
+//                    String path = Environment.getExternalStorageDirectory().getPath() + "/phone_distance.wav";
+//                    WavRecorder wavRecorder = new WavRecorder(path);
+//                    wavRecorder.startRecording();
+//                    Thread.sleep(1600);
+//                    playTone();
+//                    Thread.sleep(1500);
+//                    wavRecorder.stopRecording();
+//
+//                    Log.d("Recording", "Ends");
+//                    uploadRecording("/phone_distance.wav");
+//
+//                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -361,7 +246,7 @@ public class MainActivity extends AppCompatActivity {
                 // Upload file
                 Log.d("Uploading", "Starts");
                 File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + filename);
-                String url = "http://192.168.86.29:3000/api/phone";
+                String url = "http://192.168.1.252:3000/api/phone";
                 HttpClient httpclient = new DefaultHttpClient();
                 HttpPost post = new HttpPost(url);
 
