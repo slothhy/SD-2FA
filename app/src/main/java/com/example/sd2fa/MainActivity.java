@@ -16,8 +16,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
-import android.view.View;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -130,16 +128,11 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 count++;
 
-                if (count == 1)
-                {
+                if (count == 1) {
                     text.setText("Listening.");
-                }
-                else if (count == 2)
-                {
+                } else if (count == 2) {
                     text.setText("Listening..");
-                }
-                else if (count == 3)
-                {
+                } else if (count == 3) {
                     text.setText("Listening...");
                 }
 
@@ -156,10 +149,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        int mode = intent.getIntExtra("mode", 0);
-        if (mode == SOUND_SIMILARITY_MODE) {
-            new RecorderAsyncTask().execute(mode);
-        }
+        int startFreq = intent.getIntExtra("start_freq", 0);
+        int endFreq = intent.getIntExtra("end_freq", 0);
+        new RecorderAsyncTask().execute(startFreq, endFreq);
     }
 
 
@@ -170,7 +162,8 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected Void doInBackground(Integer... params) {
-            int mode = params[0];
+            int startFreq = params[0];
+            int endFreq = params[1];
 
             recorder = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, SAMPLING_RATE_IN_HZ,
                     CHANNEL_CONFIG, AUDIO_FORMAT, BUFFER_SIZE);
@@ -179,33 +172,17 @@ public class MainActivity extends AppCompatActivity {
                 Log.d("Recording", "Begins");
                 recordingInProgress.set(true);
 
-                if (mode == SOUND_SIMILARITY_MODE) {
+                String path = Environment.getExternalStorageDirectory().getPath() + "/phone.wav";
+                WavRecorder wavRecorder = new WavRecorder(path);
+                wavRecorder.startRecording();
+                Thread.sleep(1500);
+                playTone(startFreq, endFreq);
+                Thread.sleep(1600);
+                wavRecorder.stopRecording();
+                Log.d("Recording", "Ends");
+                uploadRecording("/phone.wav");
 
-                    String path = Environment.getExternalStorageDirectory().getPath() + "/phone.wav";
-                    WavRecorder wavRecorder = new WavRecorder(path);
-                    wavRecorder.startRecording();
-                    Thread.sleep(1500);
-                    playTone();
-                    Thread.sleep(1500);
-                    wavRecorder.stopRecording();
-                    Log.d("Recording", "Ends");
-                    uploadRecording("/phone.wav");
 
-                }
-//                else if (mode == DISTANCE_VERIFICATION_MODE) {
-//
-//                    String path = Environment.getExternalStorageDirectory().getPath() + "/phone_distance.wav";
-//                    WavRecorder wavRecorder = new WavRecorder(path);
-//                    wavRecorder.startRecording();
-//                    Thread.sleep(1600);
-//                    playTone();
-//                    Thread.sleep(1500);
-//                    wavRecorder.stopRecording();
-//
-//                    Log.d("Recording", "Ends");
-//                    uploadRecording("/phone_distance.wav");
-//
-//                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -213,8 +190,8 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
 
-        private void playTone() {
-            GenerateChirpSignal arr = new GenerateChirpSignal(16000, 20000, 0.05);
+        private void playTone(int startFreq, int endFreq) {
+            GenerateChirpSignal arr = new GenerateChirpSignal(startFreq, endFreq, 0.05);
             double[] freqArr = arr.getArr();
             int idx = 0;
             final byte generatedSnd[] = new byte[2 * 2205];
@@ -246,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                 // Upload file
                 Log.d("Uploading", "Starts");
                 File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + filename);
-                String url = "http://192.168.43.178:3000/api/phone";
+                String url = "http://192.168.43.195:3000/api/phone";
                 HttpClient httpclient = new DefaultHttpClient();
                 HttpPost post = new HttpPost(url);
 
