@@ -1,2 +1,2 @@
 include ':app'
-rootProject.name='Accel2FA'
+rootProject.name='SD2FA'

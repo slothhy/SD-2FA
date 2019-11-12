@@ -246,7 +246,7 @@ public class MainActivity extends AppCompatActivity {
                 // Upload file
                 Log.d("Uploading", "Starts");
                 File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + filename);
-                String url = "http://192.168.1.252:3000/api/phone";
+                String url = "http://192.168.43.178:3000/api/phone";
                 HttpClient httpclient = new DefaultHttpClient();
                 HttpPost post = new HttpPost(url);
 
